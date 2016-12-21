@@ -426,15 +426,16 @@ class DB {
         if(!isset($dbConf['DB_CHARSET'])){
             $dbConf['DB_CHARSET'] = 'utf8';
         }
-        $this->_db = mysql_connect($dbConf['DB_HOST'].':'.$dbConf['DB_PORT'],$dbConf['DB_USER'],$dbConf['DB_PWD']);
+        //$this->_db = mysql_connect($dbConf['DB_HOST'].':'.$dbConf['DB_PORT'],$dbConf['DB_USER'],$dbConf['DB_PWD']);
+        $this->_db = mysqli_connect($dbConf['DB_HOST'],$dbConf['DB_USER'],$dbConf['DB_PWD'],$dbConf['DB_NAME'],$dbConf['DB_PORT']);
         if($this->_db === false){
-            halt(mysql_error());
+            halt(mysqli_error());
         }
-        $selectDb = mysql_select_db($dbConf['DB_NAME'],$this->_db);
-        if($selectDb === false){
-            halt(mysql_error());
-        }
-        mysql_set_charset($dbConf['DB_CHARSET']);
+        //$selectDb = mysql_select_db($dbConf['DB_NAME'],$this->_db);
+        //if($selectDb === false){
+        //    halt(mysql_error());
+        //}
+        mysqli_set_charset($this->_db,$dbConf['DB_CHARSET']);
     }
     private function __clone(){}
 
@@ -459,7 +460,8 @@ class DB {
      * @return string 转义后的字符串
      */
     public function escape($str){
-        return mysql_real_escape_string($str, $this->_db);
+        //return mysqli_real_escape_string($str, $this->_db);
+        return mysqli_real_escape_string( $this->_db,$str);
     }
     /**
      * 查询，用于select语句
@@ -471,19 +473,20 @@ class DB {
         $this->_error = '';
         $this->_lastSql = $sql;
         $this->logSql();
-        $res = mysql_query($sql,$this->_db);
+        //$res = mysql_query($sql,$this->_db);
+        $res = mysqli_query($this->_db,$sql);
         if($res === false){
-            $this->_error = mysql_error($this->_db);
+            $this->_error = mysqli_error($this->_db);
             $this->logError();
             return false;
         }else{
-            $this->_rows = mysql_num_rows($res);
+            $this->_rows = mysqli_num_rows($res);
             $result = array();
             if($this->_rows >0) {
-                while($row = mysql_fetch_array($res, MYSQL_ASSOC)){
+                while($row = mysqli_fetch_array($res, MYSQL_ASSOC)){
                     $result[]   =   $row;
                 }
-                mysql_data_seek($res,0);
+                mysqli_data_seek($res,0);
             }
             return $result;
         }
@@ -498,13 +501,14 @@ class DB {
         $this->_error = '';
         $this->_lastSql = $sql;
         $this->logSql();
-        $result =   mysql_query($sql, $this->_db) ;
+        //$result =   mysql_query($sql, $this->_db) ;
+        $result =   mysqli_query( $this->_db,$sql) ;
         if ( false === $result) {
-            $this->_error = mysql_error($this->_db);
+            $this->_error = mysqli_error($this->_db);
             $this->logError();
             return false;
         } else {
-            $this->_rows = mysql_affected_rows($this->_db);
+            $this->_rows = mysqli_affected_rows($this->_db);
             return $this->_rows;
         }
     }
@@ -520,7 +524,7 @@ class DB {
      * @return int 自增ID
      */
     public function getInsertId() {
-        return mysql_insert_id($this->_db);
+        return mysqli_insert_id($this->_db);
     }
     /**
      * 获取上一次查询的sql
@@ -551,6 +555,59 @@ class DB {
         $str = '[SQL ERR]'.$this->_error.' SQL:'.$this->_lastSql;
         Log::warn($str);
     }
+    
+    /*
+        @增加自定义方法
+
+    */
+    public function insert($tableName, $data = array()) {
+        $columnName = "";
+        $columnValue = "";
+        if (empty($data)) return false;
+        foreach ($data as $key => $value) {
+            $columnName .= $key . ",";
+            $columnValue .= "'" . $value . "',";
+        }
+        $columnName = substr($columnName, 0, strlen($columnName) - 1);
+        $columnValue = substr($columnValue, 0, strlen($columnValue) - 1);
+        $sql = "INSERT INTO $tableName($columnName) VALUES($columnValue)";
+        $this->execute($sql);
+    }
+
+
+     public function update($tableName, $data = array(), $where = "") {
+        $updateValue = "";
+        if (empty($data)) return false;
+        foreach ($data as $key => $value) {
+            $updateValue .= $key . "='" . $value . "',";
+        }
+        $updateValue = substr($updateValue, 0, strlen($updateValue) - 1);
+        $sql = "UPDATE $tableName SET $updateValue";
+        $sql .= $where ? " WHERE $where" : null;
+        $this->execute($sql);
+     }
+    
+    public function getColumns($tableName){
+        $data=array();
+        $sql = "show fields from $tableName";//最主要是这SQL得到全表信息
+        $query = mysqli_query($this->_db,$sql);
+        while($row=mysqli_fetch_array($query)){
+            $data[]=strtolower($row['Field']);
+        }
+        return $data;
+    }
+    
+    public function getValuesFromPost($tableName){        
+        $fields=$this->getColumns($tableName);
+        $data=array();
+        for($i=0;$i<count($fields);$i++){
+            if(isset($_POST[$fields[$i]])){
+                $data[$fields[$i]]=$_POST[$fields[$i]];
+            }
+        }
+        return $data;
+    }
+
 }
 
 /**

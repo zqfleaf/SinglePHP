@@ -65,3 +65,22 @@ English: [http://leo108.github.io/SinglePHP/en/](http://leo108.github.io/SingleP
 在浏览器访问index.php，应该会输出
 
     Hello World
+
+
+# 更新记录
+
+### 说明
+
+最近一个项目，想找一个很简单的PHP架构，于是找到了他。使用一段时间后还是挺不错，虽然原主人已经很多年没更新，我把我使用过程中需要更新的推上来。
+
+ 1、修改使用连接MySQL 的库mysql_connect 为 mysqli_connect 并修改相关的数据库函数
+
+ 2、增加几个方法 
+    通过数组向表中插入一条记录
+     insert($tableName, $data = array())
+     更新一条记录
+     update($tableName, $data = array(), $where = "")
+     获取表的字段
+     getColumns($tableName)
+     从POST中取出表结构的内容
+     getValuesFromPost($tableName) 
